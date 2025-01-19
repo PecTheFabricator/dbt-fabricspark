@@ -23,7 +23,7 @@ livysession_credentials: SparkCredentials
 
 DEFAULT_POLL_WAIT = 45
 DEFAULT_POLL_STATEMENT_WAIT = 5
-AZURE_CREDENTIAL_SCOPE = "https://analysis.windows.net/powerbi/api/.default"
+AZURE_CREDENTIAL_SCOPE = "https://api.fabric.microsoft.com/.default"
 accessToken: AccessToken = None
 
 

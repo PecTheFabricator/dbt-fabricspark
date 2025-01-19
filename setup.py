@@ -68,7 +68,7 @@ setup(
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
     install_requires=[
-        "dbt-core~={}".format(dbt_core_version),
+        "dbt-core~=1.9",
         "azure-identity>=1.13.0",
         "azure-core>=1.26.4",
         "azure-cli==2.60.0"
