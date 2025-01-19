@@ -15,11 +15,11 @@ from dbt.adapters.fabricspark import SparkConnectionManager
 from dbt.adapters.fabricspark import SparkRelation
 from dbt.adapters.fabricspark import SparkColumn
 from dbt.adapters.base import BaseRelation
-from dbt.clients.agate_helper import DEFAULT_TYPE_TESTER
+from dbt_common.clients.agate_helper import DEFAULT_TYPE_TESTER
 from dbt.contracts.graph.nodes import ConstraintType
-from dbt.contracts.relation import RelationType
-from dbt.events import AdapterLogger
-from dbt.utils import executor, AttrDict
+from dbt.adapters.contracts.relation import RelationType
+from dbt.adapters.events.logging  import AdapterLogger
+from dbt_common.utils import executor, AttrDict
 
 logger = AdapterLogger("fabricspark")
 

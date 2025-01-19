@@ -8,9 +8,9 @@ import re
 import datetime as dt
 from types import TracebackType
 from typing import Any
-import dbt.exceptions
-from dbt.events import AdapterLogger
-from dbt.utils import DECIMALS
+from  dbt_common.exceptions import DbtDatabaseError
+from dbt.adapters.events.logging import AdapterLogger
+from  dbt_common.utils.encoding import DECIMALS
 from azure.core.credentials import AccessToken
 from azure.identity import AzureCliCredential, ClientSecretCredential
 from dbt.adapters.fabricspark.fabric_spark_credentials import SparkCredentials
@@ -129,23 +129,24 @@ class LivySession:
         # Create sessions
         response = None
         print("Creating Livy session (this may take a few minutes)")
-        try:
-            response = requests.post(
-                self.connect_url + "/sessions",
-                data=json.dumps(data),
-                headers=get_headers(self.credential, True),
-            )
-            if response.status_code == 200:
-                logger.debug("Initiated Livy Session...")
-            response.raise_for_status()
-        except requests.exceptions.ConnectionError as c_err:
-            print("Connection Error :", c_err)
-        except requests.exceptions.HTTPError as h_err:
-            print("Http Error: ", h_err)
-        except requests.exceptions.Timeout as t_err:
-            print("Timeout Error: ", t_err)
-        except requests.exceptions.RequestException as a_err:
-            print("Authorization Error: ", a_err)
+        #try:
+        response = requests.post(
+            self.connect_url + "/sessions",
+            data=json.dumps(data),
+            headers=get_headers(self.credential, True),
+        )
+        if response.status_code == 200:
+            logger.debug("Initiated Livy Session...")
+        print(response.text)
+        response.raise_for_status()
+        #except requests.exceptions.ConnectionError as c_err:
+         #   print("Connection Error :", c_err)
+        #except requests.exceptions.HTTPError as h_err:
+        #    print("Http Error: ", h_err)
+        #except requests.exceptions.Timeout as t_err:
+         #   print("Timeout Error: ", t_err)
+        #except requests.exceptions.RequestException as a_err:
+       #     print("Authorization Error: ", a_err)
 
         if response is None:
             raise Exception("Invalid response from livy server")
@@ -368,7 +369,7 @@ class LivyCursor:
             self._rows = None
             self._schema = None
 
-            raise dbt.exceptions.DbtDatabaseError(
+            raise DbtDatabaseError(
                 "Error while executing query: " + res["output"]["evalue"]
             )
 
@@ -474,7 +475,14 @@ class LivySessionManager:
     @staticmethod
     def connect(credentials: SparkCredentials) -> LivyConnection:
         # the following opens an spark / sql session
-        data = {"kind": "sql", "conf": credentials.livy_session_parameters}  # 'spark'
+        data = {"kind": "pyspark",
+                  "driverMemory": credentials.driver_memory,
+                    "driverCores": credentials.driver_cores,
+                    "executorMemory": credentials.executor_memory,
+                    "executorCores": credentials.executorCores,
+                    "numExecutors": credentials.num_executors,
+                 "conf": credentials.livy_session_parameters
+                }  # 'spark'
         if __class__.livy_global_session is None:
             __class__.livy_global_session = LivySession(credentials)
             __class__.livy_global_session.create_session(data)

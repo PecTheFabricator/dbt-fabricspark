@@ -1,4 +1,4 @@
-from dbt.adapters.base import Credentials
+from  dbt.adapters.contracts.connection import Credentials
 from typing import Any, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 import dbt.exceptions
@@ -18,6 +18,11 @@ class SparkCredentials(Credentials):
     authentication: str= "CLI"
     connect_retries: int = 1
     connect_timeout: int = 10
+    driver_memory: str = "7g"
+    driver_cores: int = 2
+    executor_memory: str = "7g"
+    executorCores: int = 2
+    num_executors:int = 1
     livy_session_parameters: Dict[str, Any] = field(default_factory=dict)
     retry_all: bool = False
     shortcuts_json_path: Optional[str] = None
