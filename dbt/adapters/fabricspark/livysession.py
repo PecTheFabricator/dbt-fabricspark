@@ -124,56 +124,86 @@ class LivySession:
     ) -> bool:
         # self.delete_session()
         return True
+    def get_idle_session(self,artifact_id=None, workspace_id=None) -> str:
+        """
+        Before creating a new session, check if there is an idle session available for the lakehouse and workspace
+        """
 
+        response = requests.get(self.connect_url + "/sessions?detailed=True", headers=get_headers(self.credential, True))
+        available_session = next(
+            (
+                livy_session for livy_session in response.json()['items']
+                if livy_session['livyState'] == 'idle' 
+                and (livy_session['artifactId'] == artifact_id or artifact_id is None) 
+                and (livy_session['workspaceId'] == workspace_id or workspace_id is None)
+            ),
+            None  # Default value if no matching session is found
+        )
+
+        if available_session:
+            available_session_id = available_session['id']
+        else:
+            available_session_id = None
+
+        response.raise_for_status()
+        return available_session_id
     def create_session(self, data) -> str:
         # Create sessions
-        response = None
-        print("Creating Livy session (this may take a few minutes)")
-        #try:
-        response = requests.post(
-            self.connect_url + "/sessions",
-            data=json.dumps(data),
-            headers=get_headers(self.credential, True),
-        )
-        if response.status_code == 200:
-            logger.debug("Initiated Livy Session...")
-        print(response.text)
-        response.raise_for_status()
-        #except requests.exceptions.ConnectionError as c_err:
-         #   print("Connection Error :", c_err)
-        #except requests.exceptions.HTTPError as h_err:
-        #    print("Http Error: ", h_err)
-        #except requests.exceptions.Timeout as t_err:
-         #   print("Timeout Error: ", t_err)
-        #except requests.exceptions.RequestException as a_err:
-       #     print("Authorization Error: ", a_err)
-
-        if response is None:
-            raise Exception("Invalid response from livy server")
-
-        self.session_id = None
         try:
-            self.session_id = str(response.json()["id"])
-        except requests.exceptions.JSONDecodeError as json_err:
-            raise Exception("Json decode error to get session_id") from json_err
+            get_available_session_id = self.get_idle_session(workspace_id=self.credential.workspaceid, artifact_id=self.credential.lakehouseid)
+        except Exception as ex:
+            logger.error(f"Unable to get available session: {ex}")
+            get_available_session_id = None
+        if get_available_session_id is not None:
+            self.session_id = get_available_session_id
+            logger.info(f"Reusing existing session: {self.session_id}")
+        else:
+            response = None
+            print("Creating Livy session (this may take a few minutes)")
+            try:
+                response = requests.post(
+                    self.connect_url + "/sessions",
+                    data=json.dumps(data),
+                    headers=get_headers(self.credential, True),
+                )
+                if response.status_code == 200:
+                    logger.debug("Initiated Livy Session...")
+                response.raise_for_status()
+            except requests.exceptions.ConnectionError as c_err:
+                print("Connection Error :", c_err)
+            except requests.exceptions.HTTPError as h_err:
+                print("Http Error: ", h_err)
+            except requests.exceptions.Timeout as t_err:
+                print("Timeout Error: ", t_err)
+            except requests.exceptions.RequestException as a_err:
+                print("Authorization Error: ", a_err)
 
-        # Wait for started state
-        while True:
-            res = requests.get(
-                self.connect_url + "/sessions/" + self.session_id,
-                headers=get_headers(self.credential, False),
-            ).json()
-            if res["state"] == "starting" or res["state"] == "not_started":                
-                # logger.debug("Polling Session creation status - ", self.connect_url + '/sessions/' + self.session_id )
-                time.sleep(DEFAULT_POLL_WAIT)
-            elif res["livyInfo"]["currentState"] == "idle":
-                logger.debug(f"New livy session id is: {self.session_id}, {res}")
-                self.is_new_session_required = False
-                break
-            elif res["livyInfo"]["currentState"] == "dead":
-                print("ERROR, cannot create a livy session")
-                raise dbt.exceptions.FailedToConnectException("failed to connect")
-        print("Livy session created successfully")
+            if response is None:
+                raise Exception("Invalid response from livy server")
+
+            self.session_id = None
+            try:
+                self.session_id = str(response.json()["id"])
+            except requests.exceptions.JSONDecodeError as json_err:
+                raise Exception("Json decode error to get session_id") from json_err
+
+            # Wait for started state
+            while True:
+                res = requests.get(
+                    self.connect_url + "/sessions/" + self.session_id,
+                    headers=get_headers(self.credential, False),
+                ).json()
+                if res["state"] == "starting" or res["state"] == "not_started":                
+                    # logger.debug("Polling Session creation status - ", self.connect_url + '/sessions/' + self.session_id )
+                    time.sleep(DEFAULT_POLL_WAIT)
+                elif res["livyInfo"]["currentState"] == "idle":
+                    logger.debug(f"New livy session id is: {self.session_id}, {res}")
+                    self.is_new_session_required = False
+                    break
+                elif res["livyInfo"]["currentState"] == "dead":
+                    print("ERROR, cannot create a livy session")
+                    raise dbt.exceptions.FailedToConnectException("failed to connect")
+            print("Livy session created successfully")
         return self.session_id
 
     def delete_session(self) -> None:
