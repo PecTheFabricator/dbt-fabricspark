@@ -147,6 +147,7 @@ class LivySession:
 
         response.raise_for_status()
         return available_session_id
+    
     def create_session(self, data) -> str:
         # Create sessions
         try:
@@ -159,7 +160,7 @@ class LivySession:
             logger.info(f"Reusing existing session: {self.session_id}")
         else:
             response = None
-            print("Creating Livy session (this may take a few minutes)")
+            logger.info("No available session found, creating a new session (this may take a few minutes)")
             try:
                 response = requests.post(
                     self.connect_url + "/sessions",
@@ -501,6 +502,7 @@ class LivyConnection:
 # TODO: How to authenticate
 class LivySessionManager:
     livy_global_session = None
+    livy_close_connection = False
 
     @staticmethod
     def connect(credentials: SparkCredentials) -> LivyConnection:
@@ -538,11 +540,12 @@ class LivySessionManager:
 
     @staticmethod
     def disconnect() -> None:
-        if __class__.livy_global_session is not None and __class__.livy_global_session.is_valid_session():
-            __class__.livy_global_session.delete_session()
-            __class__.livy_global_session.is_new_session_required = True
-        else:
-            logger.debug("No session to disconnect")
+        if __class__.livy_close_connection:
+            if __class__.livy_global_session is not None and __class__.livy_global_session.is_valid_session():
+                __class__.livy_global_session.delete_session()
+                __class__.livy_global_session.is_new_session_required = True
+            else:
+                logger.debug("No session to disconnect")
 
 
 class LivySessionConnectionWrapper(object):

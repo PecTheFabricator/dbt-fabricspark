@@ -20,12 +20,13 @@ class SparkCredentials(Credentials):
     connect_timeout: int = 10
     driver_memory: str = "7g"
     driver_cores: int = 2
-    executor_memory: str = "7g"
+    executor_memory: str =None
     executorCores: int = 2
     num_executors:int = 1
     livy_session_parameters: Dict[str, Any] = field(default_factory=dict)
     retry_all: bool = False
     shortcuts_json_path: Optional[str] = None
+    close_livy_connection: bool = False
 
     @classmethod
     def __pre_deserialize__(cls, data: Any) -> Any:
@@ -72,5 +73,5 @@ class SparkCredentials(Credentials):
         return self.lakehouseid  # type: ignore
 
     def _connection_keys(self) -> Tuple[str, ...]:
-        return "workspaceid", "lakehouseid", "lakehouse", "endpoint", "schema"
+        return "workspaceid", "lakehouseid", "lakehouse", "endpoint", "schema","close_livy_connection","executor_memory"
 
